@@ -18,8 +18,96 @@ services:
     environment:
       KAFKA_BROKER_ID: 1
       KAFKA_ZOOKEEPER_CONNECT: 'zookeeper:2181'
-      KAFKA_ADVERTISED_LISTENERS: PLAINTEXT://localhost:9092
+      KAFKA_ADVERTISED_LISTENERS: PLAINTEXT://kafka:9092
+      KAFKA_LISTENERS: PLAINTEXT://0.0.0.0:9092
       KAFKA_LISTENER_SECURITY_PROTOCOL_MAP: PLAINTEXT:PLAINTEXT
       KAFKA_OFFSETS_TOPIC_REPLICATION_FACTOR: 1
       KAFKA_AUTO_CREATE_TOPICS_ENABLE: 'true'
       KAFKA_CONFLUENT_SUPPORT_METRICS_ENABLE: 'false'
+
+  mysql:
+    image: mysql:latest
+    container_name: mysql
+    environment:
+      MYSQL_ROOT_PASSWORD: Locomotiva1
+      MYSQL_DATABASE: test_directory
+    ports:
+      - "3306:3306"
+    volumes:
+      - mysql-data:/var/lib/mysql
+
+  discovery-service:
+    build:
+      context: ./discovery-service
+    container_name: discovery-service
+    ports:
+      - "8761:8761"
+    environment:
+      - eureka.client.register-with-eureka=false
+      - eureka.client.fetch-registry=false
+
+  api-gateway:
+    build:
+      context: ./api-gateway
+    container_name: api-gateway
+    ports:
+      - "8080:8080"
+    depends_on:
+      - discovery-service
+      - movies-service
+      - rating-service
+      - recommendations-service
+    environment:
+      - eureka.client.serviceUrl.defaultZone=http://discovery-service:8761/eureka/
+
+  movies-service:
+    build:
+      context: ./movies-service
+    container_name: movies-service
+    depends_on:
+      - mysql
+      - kafka
+      - discovery-service
+    environment:
+      - spring.datasource.url=jdbc:mysql://mysql:3306/test_directory
+      - spring.datasource.username=root
+      - spring.datasource.password=Locomotiva1
+      - spring.jpa.hibernate.ddl-auto=update
+      - spring.kafka.bootstrap-servers=kafka:9092
+      - eureka.client.serviceUrl.defaultZone=http://discovery-service:8761/eureka
+    ports:
+      - "8081:8081"
+
+  rating-service:
+    build:
+      context: ./rating-service
+    container_name: rating-service
+    depends_on:
+      - mysql
+      - kafka
+      - discovery-service
+    environment:
+      - spring.datasource.url=jdbc:mysql://mysql:3306/test_directory
+      - spring.datasource.username=root
+      - spring.datasource.password=Locomotiva1
+      - spring.jpa.hibernate.ddl-auto=update
+      - spring.kafka.bootstrap-servers=kafka:9092
+      - eureka.client.serviceUrl.defaultZone=http://discovery-service:8761/eureka
+    ports:
+      - "8082:8082"
+
+  recommendations-service:
+    build:
+      context: ./recommendations-service
+    container_name: recommendations-service
+    depends_on:
+      - kafka
+      - discovery-service
+    environment:
+      - spring.kafka.bootstrap-servers=kafka:9092
+      - eureka.client.serviceUrl.defaultZone=http://discovery-service:8761/eureka
+    ports:
+      - "8083:8083"
+
+volumes:
+  mysql-data:

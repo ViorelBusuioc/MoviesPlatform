@@ -9,8 +9,8 @@ import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import org.springframework.kafka.core.KafkaTemplate;
 import org.springframework.stereotype.Service;
+import org.springframework.web.multipart.MultipartFile;
 
-import java.io.File;
 import java.io.IOException;
 import java.util.List;
 import java.util.Optional;
@@ -61,12 +61,11 @@ public class MovieService {
         return "Movie with the id + " + id + " has been deleted!";
     }
 
-    public void addMoviesFromJSON(String filePath) {
+    public void addMoviesFromJSON(MultipartFile file) {
 
         try {
-            File file = new File(filePath);
             // Parse JSON file into a list of movies
-            List<Movie> movies = objectMapper.readValue(file, new TypeReference<List<Movie>>(){});
+            List<Movie> movies = objectMapper.readValue(file.getInputStream(), new TypeReference<List<Movie>>(){});
             // Save the movies to the database
             for (Movie movie : movies) {
                 saveMovie(movie);

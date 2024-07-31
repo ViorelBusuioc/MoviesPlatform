@@ -4,6 +4,7 @@ import dev.vio.movies_service.entity.Movie;
 import dev.vio.movies_service.service.MovieService;
 import lombok.RequiredArgsConstructor;
 import org.springframework.web.bind.annotation.*;
+import org.springframework.web.multipart.MultipartFile;
 
 import java.util.List;
 
@@ -40,10 +41,9 @@ public class MovieController {
     }
 
     @PostMapping("/movies/load")
-    public void loadData() {
+    public void loadData(@RequestParam("file")MultipartFile file) {
 
-        String filePath = "/Users/viorelbusuioc/Downloads/Test Projects/MoviesApp/movies-service/src/main/java/dev/vio/movies_service/service/MOCK_DATA.json"; // Update with your actual file path
-        movieService.addMoviesFromJSON(filePath);
+        movieService.addMoviesFromJSON(file);
     }
 
 }
