@@ -94,10 +94,9 @@ class MoviesServiceApplicationTests {
 
 	@Test
 	void cProduceKafkaMessageTest() {
+
 		String messageKey = "Inception";
 		String messageValue = "Sci-Fi";
-
-		// Produce a message to Kafka
 		kafkaTemplate.send("movies-topic", messageKey, messageValue);
 	}
 
