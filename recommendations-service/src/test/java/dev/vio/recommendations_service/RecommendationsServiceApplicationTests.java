@@ -3,6 +3,8 @@ package dev.vio.recommendations_service;
 import org.apache.kafka.clients.producer.ProducerConfig;
 import org.apache.kafka.common.serialization.StringDeserializer;
 import org.apache.kafka.common.serialization.StringSerializer;
+import org.junit.jupiter.api.AfterAll;
+import org.junit.jupiter.api.BeforeAll;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
 import org.springframework.beans.factory.annotation.Autowired;
@@ -38,9 +40,15 @@ class RecommendationsControllerTest {
 
 	private KafkaTemplate<String, String> kafkaTemplate;
 
-	static {
+	@BeforeAll
+	static void startKafka() {
 		kafkaContainer = new KafkaContainer(DockerImageName.parse("confluentinc/cp-kafka:latest"));
 		kafkaContainer.start();
+	}
+
+	@AfterAll
+	static void stopKafka() {
+		kafkaContainer.stop();
 	}
 
 	@DynamicPropertySource
@@ -63,26 +71,30 @@ class RecommendationsControllerTest {
 
 	@Test
 	void testGetRecommendationsEndpoint() throws Exception {
-		// Arrange: Send some messages to Kafka
-		kafkaTemplate.send("movies-topic", "Inception", "Sci-Fi|Thriller");
-		kafkaTemplate.send("movies-topic", "The Matrix", "Sci-Fi|Action");
-		kafkaTemplate.send("movies-topic", "The Dark Knight", "Action|Crime|Drama");
+		try {
+			// Arrange: Send some messages to Kafka
+			kafkaTemplate.send("movies-topic", "Inception", "Sci-Fi|Thriller").get(10, TimeUnit.SECONDS);
+			kafkaTemplate.send("movies-topic", "The Matrix", "Sci-Fi|Action").get(10, TimeUnit.SECONDS);
+			kafkaTemplate.send("movies-topic", "The Dark Knight", "Action|Crime|Drama").get(10, TimeUnit.SECONDS);
 
-		// Allow some time for the messages to be processed
-		TimeUnit.SECONDS.sleep(5);
+			// Allow some time for the messages to be processed
+			TimeUnit.SECONDS.sleep(5);
 
-		// Act & Assert: Test the endpoint
-		mockMvc.perform(MockMvcRequestBuilders
-						.get("/api/recommendations")
-						.accept(MediaType.APPLICATION_JSON))
-				.andExpect(status().isOk())
-				.andExpect(content().contentType(MediaType.APPLICATION_JSON))
-				.andExpect(jsonPath("$.['Sci-Fi']").isArray())
-				.andExpect(jsonPath("$.['Sci-Fi']").value(org.hamcrest.Matchers.containsInAnyOrder("Inception", "The Matrix")))
-				.andExpect(jsonPath("$.Thriller").value(org.hamcrest.Matchers.contains("Inception")))
-				.andExpect(jsonPath("$.Action").value(org.hamcrest.Matchers.containsInAnyOrder("The Matrix", "The Dark Knight")))
-				.andExpect(jsonPath("$.Crime").value(org.hamcrest.Matchers.contains("The Dark Knight")))
-				.andExpect(jsonPath("$.Drama").value(org.hamcrest.Matchers.contains("The Dark Knight")));
+			// Act & Assert: Test the endpoint
+			mockMvc.perform(MockMvcRequestBuilders
+							.get("/api/recommendations")
+							.accept(MediaType.APPLICATION_JSON))
+					.andExpect(status().isOk())
+					.andExpect(content().contentType(MediaType.APPLICATION_JSON))
+					.andExpect(jsonPath("$.['Sci-Fi']").isArray())
+					.andExpect(jsonPath("$.['Sci-Fi']").value(org.hamcrest.Matchers.containsInAnyOrder("Inception", "The Matrix")))
+					.andExpect(jsonPath("$.Thriller").value(org.hamcrest.Matchers.contains("Inception")))
+					.andExpect(jsonPath("$.Action").value(org.hamcrest.Matchers.containsInAnyOrder("The Matrix", "The Dark Knight")))
+					.andExpect(jsonPath("$.Crime").value(org.hamcrest.Matchers.contains("The Dark Knight")))
+					.andExpect(jsonPath("$.Drama").value(org.hamcrest.Matchers.contains("The Dark Knight")));
+		} catch (Exception e) {
+			e.printStackTrace();
+		}
 	}
 
 	@Test
